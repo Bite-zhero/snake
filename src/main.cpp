@@ -156,8 +156,6 @@ void tick(int &program_running_status, int tick_per_second, vector<Fruit> &fruit
     }
 
     std::this_thread::sleep_for(chrono::milliseconds(1000 / tick_per_second));
-
-    mvaddch(0, 0, 'S' | A_BLINK);
 };
 
 int main(int argc, char *argv[]) {
