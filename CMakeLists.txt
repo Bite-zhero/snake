@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.12)
+
+project(Snake LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED OFF)
+
+add_subdirectory(src)
+
+# message(STATUS "CURSES_FOUND = ${CURSES_FOUND}")
+# message(STATUS "CURSES_INCLUDE_DIRS = ${CURSES_INCLUDE_DIRS}")
+# message(STATUS "CURSES_LIBRARIES = ${CURSES_LIBRARIES}")

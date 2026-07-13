@@ -1,0 +1,15 @@
+/build/
+/build*/
+/out/
+/bin/
+
+/.vs/
+/.vscode/
+/*.user
+/CMakeSettings.json
+
+*.exe
+*.a
+*.o
+*.so
+*.dylib
