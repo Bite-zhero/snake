@@ -1,25 +1,21 @@
+#include "config.hpp"
 #include "fruits.hpp"
-#include "include/snake.hpp"
-#include "logic.hpp"
+#include "game.hpp"
 #include "snake.hpp"
-#include <array>
 #include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
-#include <iterator>
+#include <ostream>
 #include <ncurses.h>
 #include <random>
 #include <string>
 #include <thread>
-#include <vector>
-using namespace std;
+#include <format>
+#include <random>
 
-void helloWorld() { std::cout << "hello World :)" << std::endl; }
-
-// Damn, i code this function before acknowled that is a built-in function what
-// does the same, fuck
 void walls_generate() {
 
-    // refresh();
     clear();
 
     int maxY = LINES;
@@ -36,193 +32,230 @@ void walls_generate() {
     refresh();
 }
 
-vector<Fruit> fruits_generator(int tC, int fruit_quantity) {
+int Game::next_key_from_buffer() {
+    if (!keys_buffer.front()) {
+        return 1;
+    }
+    int key = keys_buffer.front();
+    keys_buffer.erase(keys_buffer.begin() + 1);
+    return key;
+}
+
+void Game::sleep() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / config.ticks_per_second));
+}
+
+void Game::input_handler() {
+    int key = next_key_from_buffer();
+    switch (key) {
+        case 'q':
+            game_running_status = 0;
+            break;
+
+        case 'Q':
+            game_running_status = 0;
+            break;
+
+        case KEY_RESIZE:
+            clear();
+            width = getmaxx(win);
+            height = getmaxy(win);
+            walls_generate();
+            refresh();
+            break;
+
+        case 'r':
+            for (Fruit& fruit: fruits) {fruit.undraw(win);};
+            fruits_generator(config.fruits_to_generate);
+            break;
+
+        case KEY_UP:
+            if (snake.direction != Direcction::DOWN) {snake.direction = Direcction::UP;};
+            break;
+        
+        case KEY_RIGHT:
+            if (snake.direction != Direcction::LEFT) {snake.direction = Direcction::RIGHT;};
+            break;
+
+        case KEY_DOWN:
+            if (snake.direction != Direcction::UP) {snake.direction = Direcction::DOWN;};
+            break;
+        
+        case KEY_LEFT:
+            if (snake.direction != Direcction::RIGHT) {snake.direction = Direcction::LEFT;};
+            break;
+    }
+}
+
+void Game::initScr() {
+    initscr();
+    win = stdscr;
+    noecho();
+    cbreak();
+    keypad(win, TRUE);
+    nodelay(win, TRUE);
+    curs_set(0);
+    if (has_colors()) {
+        start_color();
+        use_default_colors();
+        init_pair(WALLS_COLOR, COLOR_YELLOW, COLOR_YELLOW);
+        init_pair(SNAKE_COLOR, COLOR_GREEN, COLOR_GREEN);
+    }
+    walls_generate();
+    wrefresh(win);
+    sleep();
+}
+
+void Game::fruits_generator(int fruits_quatity) {
+    int heigth = getmaxy(win);
+    int width = getmaxx(win);
+    int totalCoords = width * heigth;
+    std::vector<Fruit> _fruits;
+
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> distr(1, tC - 1);
-    std::vector<array<int, 2>> fruitsCoords;
-    std::vector<Fruit> fruits;
+    std::uniform_int_distribution<int> distr(0, totalCoords);
+    for (int i = 0; i < fruits_quatity; ++i) {
+        int rawCoords = distr(gen);
+        // std::cout << "a fruit gen iteration" << std::endl;
 
-    int width = getmaxx(stdscr);
-    int height = getmaxy(stdscr);
-
-    for (int i = 0; i < fruit_quantity; i++) {
-        int tmpTotalCoord = distr(gen);
-
-        int tmpX = tmpTotalCoord % width;
-        int tmpY = tmpTotalCoord / width;
-
-        array<int, 2> tmpArr;
-
-        tmpArr[0] = tmpX;
-        tmpArr[1] = tmpY;
-
-        if (tmpArr[0] == 0) {
-            tmpArr[0]++;
+        int tmpY = rawCoords / width;
+        int tmpX = rawCoords % width;
+        if ((tmpX == 0 || tmpX >= width-1) || (tmpY == 0 || tmpY >= heigth-1)) {
+            --i;
+            continue;
         }
-        if (tmpArr[0] >= width) {
-            tmpArr[0]--;
+        for (Fruit& fruit : _fruits) {
+            if (tmpX == fruit.x && tmpY == fruit.y) {
+                --i;
+                continue;
+            }
         }
-        if (tmpArr[1] == 0) {
-            tmpArr[1]++;
-        }
-        if (tmpArr[1] >= height) {
-            tmpArr[1]--;
-        }
-
-        fruitsCoords.push_back(tmpArr);
+        _fruits.push_back(Fruit(tmpX, tmpY));
     }
-    for (array<int, 2> fruitCoord : fruitsCoords) {
-        fruits.push_back(Fruit(fruitCoord[0], fruitCoord[1]));
-    }
-    return fruits;
+    fruits = _fruits;
 }
 
-void fruit_draw(vector<Fruit> &input_fruits) {
-    for (Fruit &fruit : input_fruits) {
-        fruit.draw(stdscr);
+void Game::snake_move() {
+    if (passed_ticks == config.snake_update_time_factor) {
+        passed_ticks = 0;
+        snake.undraw(win);
+        snake.move(win);
     }
 }
 
-void tick(int &program_running_status, int tick_per_second, vector<Fruit> &fruits, int &f_first_gen, Snake &snake, int &ticks_meter, int &fruits_quantity_gen, int snake_update_time_factor) {
-
-    if (snake.drawed != 1) {
-        snake.draw(stdscr);
-        snake.drawed = 1;
+void Game::draw() {
+    for (Fruit& fruit: fruits) {
+        fruit.draw(win);
     }
+    snake.draw(win);
+    std::string scoreStr = std::format("SCORE: {}", score);
+    std::string max_scoreStr = std::format("MAX SCORE: {}", max_score);
+    mvaddstr(0, (width / 2) - scoreStr.size() / 2 , scoreStr.c_str());
+    mvaddstr(height-1, (width / 2) - scoreStr.size() / 2 , max_scoreStr.c_str());
+}
 
-    int k = getch();
-
-    auto fruit_undraw = [](vector<Fruit> &input_fruits) -> void {
-        for (Fruit &fruit : input_fruits) {
-            fruit.undraw(stdscr);
-        }
-    };
-    fruit_draw(fruits);
-
-    ticks_meter++;
-
-    ///// START THE TICK PROCCESSOR
-    if (k != ERR) {
-        if (k == 'q' || k == 'Q') {
-            program_running_status = 0;
-        } else if (k == KEY_RESIZE) {
-            walls_generate();
-            fruit_undraw(fruits);
-            fruits = fruits_generator((getmaxx(stdscr) - 1) * (getmaxy(stdscr) - 1),fruits_quantity_gen);
-            snake.drawed = 0;
-        } else if (k == 'R' || k == 'r') {
-            fruit_undraw(fruits);
-            fruits = fruits_generator((getmaxx(stdscr) - 1) * (getmaxy(stdscr) - 1),fruits_quantity_gen);
-        } else if (k == KEY_UP && snake.direction != 3) {
-            snake.direction = 1;
-        } else if (k == KEY_LEFT && snake.direction != 4) {
-            snake.direction = 2;
-        } else if (k == KEY_DOWN && snake.direction != 1) {
-            snake.direction = 3;
-        } else if (k == KEY_RIGHT && snake.direction != 2) {
-            snake.direction = 4;
-        }
-    }
-
-    int width = getmaxx(stdscr);
-    int height = getmaxy(stdscr);
-
-    if (ticks_meter >= tick_per_second / snake_update_time_factor) {
-        snake.move(stdscr);
-        ticks_meter = 0;
-    }
-
+void Game::collisions_check() {
     for (int i = 0; i < fruits.size(); i++) {
         if (fruits[i].y == snake.y && fruits[i].x == snake.x) {
-            // fruits[i].undraw(stdscr);
             fruits.erase(fruits.begin() + i);
             snake.increase_tail(1);
+            score++;
         }
     }
-
-    // cout << "width: " << width << "  " << "height: " << height << endl;
-    if ((snake.y == 0 || snake.y == height - 1) ||
-        (snake.x == 0 || snake.x == width - 1)) {
-        snake.game_over_function();
+    if (snake.y <= 0 || snake.y >= height) {
+        game_over();
     }
-
-    if (snake.game_over != 0) {
-        program_running_status = 0;
+    if (snake.x <= 0 || snake.x >= width) {
+        game_over();
     }
-
-    if (fruits.size() <= 0) {
-        fruits = fruits_generator((getmaxx(stdscr) - 1) * (getmaxy(stdscr) - 1), fruits_quantity_gen);
+    for (SnakeTail& snakeTail: snake.tail) {
+        if (snake.x == snakeTail.x && snake.y == snakeTail.y) {
+            game_over();
+        }
     }
+}
 
-    std::this_thread::sleep_for(chrono::milliseconds(1000 / tick_per_second));
-};
+void Game::set_max_score() {
+    std::ofstream dataFile("dataFile.txt");
+    if (!dataFile.is_open()) {
+        return;
+    }
+    dataFile << "Max score: " << max_score << std::endl;
+    dataFile.close();
+}
+
+void Game::get_max_score() {
+    std::ifstream dataFile("dataFile.txt");
+    if (!dataFile.is_open()) {
+        return;
+    }
+    std::string line;
+    while (std::getline(dataFile, line)) {
+        std::string rstr = line.substr(11, line.size() - 1);
+        max_score = std::stoi(rstr);
+    }
+    dataFile.close();
+}
+
+void Game::game_over() {
+    endwin();
+    set_max_score();
+    std::cout << "Game Over :(" << std::endl;
+    std::exit(0);
+}
+
+void Game::run() {
+    initScr();
+    width = getmaxx(win);
+    height = getmaxy(win);
+    snake.x = width / 2;
+    snake.y = height / 2;
+    get_max_score();
+    while (game_running_status == 1) {
+        passed_ticks++;
+
+        keys_buffer.push_back(getch());
+        input_handler();
+
+        if (fruits.size() <= 0) {
+            fruits_generator(16);
+        }
+
+        snake_move();
+
+        collisions_check();
+
+        if (score > max_score) {
+            max_score = score;
+        }
+
+        draw();
+        refresh();
+        sleep();
+    }
+}
 
 int main(int argc, char *argv[]) {
 
-    int tickPerSecond = 12;
-    int fruits_to_generate = 16;
-    int snake_update_time_factor = tickPerSecond / 2;
+    GameConfig configs;
     for (int i = 0; i < argc; ++i) {
-        string arg = argv[i];
+        std::string arg = argv[i];
         if (arg == "--ticks") {
-            tickPerSecond = std::stoi(argv[i+1]);           
+            configs.ticks_per_second = std::stoi(argv[i+1]);           
         }
         if (arg == "--fruits") {
-            fruits_to_generate = std::stoi(argv[i+1]);
+            configs.fruits_to_generate = std::stoi(argv[i+1]);
         }
         if (arg == "--snake-update-factor") {
-            snake_update_time_factor = std::stoi(argv[i+1]);
+            configs.snake_update_time_factor = std::stoi(argv[i+1]);
         }
     }
 
-    //// init program stats
-    int program_running_status = 1;
+    Game game(configs);
 
-    initscr(); // that thing initiate the screen, i thought that this are for
-               // everything on ncurses
-    noecho();  // the name say what its do, dont echo the characters to the
-               // terminal again
-    cbreak();
-
-    keypad(stdscr, TRUE);
-    nodelay(stdscr, TRUE);
-
-    curs_set(0);
-
-    /////////////
-
-    int width = getmaxx(stdscr);
-    int height = getmaxy(stdscr);
-
-    int total_avaible_space = (width - 1) * (height - 1);
-
-    Snake snake(width / 2, height / 2);
-
-    vector<Fruit> fruits = fruits_generator(total_avaible_space, fruits_to_generate);
-
-    walls_generate();
-
-    int totalCoords = width * height;
-
-
-    int passedTicks = 0;
-
-    /////////////
-
-    int ola = 0;
-    int chr;
-    while (program_running_status == 1) {
-        tick(program_running_status, tickPerSecond, fruits, ola, snake, passedTicks, fruits_to_generate, snake_update_time_factor);
-    }
+    game.run();
 
     endwin();
-
-    if (snake.game_over == 1) {
-        cout << "game over :(" << endl;
-    }
-
-    // cout << "an succes on execution :)\n" << program_running_status << endl;
-
-    return 1;
+    return 0;
 }

@@ -9,11 +9,18 @@
 
 void helloWorld();
 
+enum Direcction {
+  UP,
+  RIGHT,
+  DOWN,
+  LEFT
+};
+
 struct SnakeTail : public Drawable {
 public:
   SnakeTail(int startX, int startY) : Drawable(startX, startY) {};
 
-  void draw(WINDOW *win) override { mvaddch(y, x, ' '); }
+  void draw(WINDOW *win) override { mvaddch(y, x, '#'); }
 
   void undraw(WINDOW *win) override { mvaddch(y, x, ' '); }
 };
@@ -21,7 +28,7 @@ public:
 class Snake : public Drawable {
 public:
   int drawed = 0;
-  int direction = 1;
+  Direcction direction = Direcction::UP;
   std::vector<SnakeTail> tail;
   int game_over = 0;
 
@@ -30,12 +37,10 @@ public:
   };
 
   void draw(WINDOW *win) override {
-    wattron(win, COLOR_PAIR(SNAKE_COLOR));
-    mvaddch(y, x, ' ');
+    mvaddch(y, x, ACS_CKBOARD );
     for (SnakeTail &snakeTail : tail) {
       snakeTail.draw(win);
     }
-    wattroff(win, COLOR_PAIR(SNAKE_COLOR));
   }
 
   void undraw(WINDOW *win) override {
@@ -47,8 +52,6 @@ public:
 
   void move(WINDOW *win) {
 
-    undraw(win);
-
     std::array<int, 2> old_coords = {x, y};
     std::array<int, 2> tmp_old_coords;
     for (SnakeTail &tail : tail) {
@@ -59,35 +62,26 @@ public:
     }
 
     switch (direction) {
-    case 1:
-      y -= 1;
-      break;
+      using enum Direcction;
+      case UP:
+        y -= 1;
+        break;
 
-    case 2:
-      x -= 1;
-      break;
+      case RIGHT:
+        x += 1;
+        break;
 
-    case 3:
-      y += 1;
-      break;
+      case DOWN:
+        y += 1;
+        break;
 
-    case 4:
-      x += 1;
-      break;
-    }
-
-    draw(win);
-
-    for (SnakeTail &tail : tail) {
-      if (x == tail.x && y == tail.y) {
-        game_over_function();
-      }
+      case LEFT:
+        x -= 1;
+        break;
     }
   }
 
   void increase_tail(int quantity) {
-    tail.push_back(SnakeTail(tail.back().y - 1, tail.back().x - 1));
+    tail.push_back(SnakeTail(tail.back().y, tail.back().x ));
   };
-
-  void game_over_function() { game_over = 1; };
 };

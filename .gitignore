@@ -13,3 +13,5 @@
 *.o
 *.so
 *.dylib
+src/mainOld.cpp
+dataFile.txt
