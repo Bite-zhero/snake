@@ -82,6 +82,6 @@ public:
   }
 
   void increase_tail(int quantity) {
-    tail.push_back(SnakeTail(tail.back().y, tail.back().x ));
+    tail.push_back(SnakeTail(tail.back().x, tail.back().y ));
   };
 };

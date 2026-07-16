@@ -84,6 +84,22 @@ void Game::input_handler() {
         case KEY_LEFT:
             if (snake.direction != Direcction::RIGHT) {snake.direction = Direcction::LEFT;};
             break;
+
+        case 'w':
+            if (snake.direction != Direcction::DOWN) {snake.direction = Direcction::UP;};
+            break;
+        
+        case 'd':
+            if (snake.direction != Direcction::LEFT) {snake.direction = Direcction::RIGHT;};
+            break;
+
+        case 's':
+            if (snake.direction != Direcction::UP) {snake.direction = Direcction::DOWN;};
+            break;
+        
+        case 'a':
+            if (snake.direction != Direcction::RIGHT) {snake.direction = Direcction::LEFT;};
+            break;
     }
 }
 
