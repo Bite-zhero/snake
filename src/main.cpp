@@ -4,15 +4,14 @@
 #include "snake.hpp"
 #include <chrono>
 #include <cstdlib>
+#include <format>
 #include <fstream>
 #include <iostream>
-#include <ostream>
 #include <ncurses.h>
+#include <ostream>
 #include <random>
 #include <string>
 #include <thread>
-#include <format>
-#include <random>
 
 void walls_generate() {
 
@@ -42,64 +41,85 @@ int Game::next_key_from_buffer() {
 }
 
 void Game::sleep() {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / config.ticks_per_second));
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(1000 / config.ticks_per_second));
 }
 
 void Game::input_handler() {
     int key = next_key_from_buffer();
     switch (key) {
-        case 'q':
-            game_running_status = 0;
-            break;
+    case 'q':
+        game_running_status = 0;
+        set_max_score();
+        break;
 
-        case 'Q':
-            game_running_status = 0;
-            break;
+    case 'Q':
+        game_running_status = 0;
+        set_max_score();
+        break;
 
-        case KEY_RESIZE:
-            clear();
-            width = getmaxx(win);
-            height = getmaxy(win);
-            walls_generate();
-            refresh();
-            break;
+    case KEY_RESIZE:
+        clear();
+        width = getmaxx(win);
+        height = getmaxy(win);
+        walls_generate();
+        refresh();
+        break;
 
-        case 'r':
-            for (Fruit& fruit: fruits) {fruit.undraw(win);};
-            fruits_generator(config.fruits_to_generate);
-            break;
+    case 'r':
+        for (Fruit &fruit : fruits) {
+            fruit.undraw(win);
+        };
+        fruits_generator(config.fruits_to_generate);
+        break;
 
-        case KEY_UP:
-            if (snake.direction != Direcction::DOWN) {snake.direction = Direcction::UP;};
-            break;
-        
-        case KEY_RIGHT:
-            if (snake.direction != Direcction::LEFT) {snake.direction = Direcction::RIGHT;};
-            break;
+    case KEY_UP:
+        if (snake.direction != Direcction::DOWN) {
+            snake.direction = Direcction::UP;
+        };
+        break;
 
-        case KEY_DOWN:
-            if (snake.direction != Direcction::UP) {snake.direction = Direcction::DOWN;};
-            break;
-        
-        case KEY_LEFT:
-            if (snake.direction != Direcction::RIGHT) {snake.direction = Direcction::LEFT;};
-            break;
+    case KEY_RIGHT:
+        if (snake.direction != Direcction::LEFT) {
+            snake.direction = Direcction::RIGHT;
+        };
+        break;
 
-        case 'w':
-            if (snake.direction != Direcction::DOWN) {snake.direction = Direcction::UP;};
-            break;
-        
-        case 'd':
-            if (snake.direction != Direcction::LEFT) {snake.direction = Direcction::RIGHT;};
-            break;
+    case KEY_DOWN:
+        if (snake.direction != Direcction::UP) {
+            snake.direction = Direcction::DOWN;
+        };
+        break;
 
-        case 's':
-            if (snake.direction != Direcction::UP) {snake.direction = Direcction::DOWN;};
-            break;
-        
-        case 'a':
-            if (snake.direction != Direcction::RIGHT) {snake.direction = Direcction::LEFT;};
-            break;
+    case KEY_LEFT:
+        if (snake.direction != Direcction::RIGHT) {
+            snake.direction = Direcction::LEFT;
+        };
+        break;
+
+    case 'w':
+        if (snake.direction != Direcction::DOWN) {
+            snake.direction = Direcction::UP;
+        };
+        break;
+
+    case 'd':
+        if (snake.direction != Direcction::LEFT) {
+            snake.direction = Direcction::RIGHT;
+        };
+        break;
+
+    case 's':
+        if (snake.direction != Direcction::UP) {
+            snake.direction = Direcction::DOWN;
+        };
+        break;
+
+    case 'a':
+        if (snake.direction != Direcction::RIGHT) {
+            snake.direction = Direcction::LEFT;
+        };
+        break;
     }
 }
 
@@ -137,11 +157,12 @@ void Game::fruits_generator(int fruits_quatity) {
 
         int tmpY = rawCoords / width;
         int tmpX = rawCoords % width;
-        if ((tmpX == 0 || tmpX >= width-1) || (tmpY == 0 || tmpY >= heigth-1)) {
+        if ((tmpX == 0 || tmpX >= width - 1) ||
+            (tmpY == 0 || tmpY >= heigth - 1)) {
             --i;
             continue;
         }
-        for (Fruit& fruit : _fruits) {
+        for (Fruit &fruit : _fruits) {
             if (tmpX == fruit.x && tmpY == fruit.y) {
                 --i;
                 continue;
@@ -161,14 +182,15 @@ void Game::snake_move() {
 }
 
 void Game::draw() {
-    for (Fruit& fruit: fruits) {
+    for (Fruit &fruit : fruits) {
         fruit.draw(win);
     }
     snake.draw(win);
     std::string scoreStr = std::format("SCORE: {}", score);
     std::string max_scoreStr = std::format("MAX SCORE: {}", max_score);
-    mvaddstr(0, (width / 2) - scoreStr.size() / 2 , scoreStr.c_str());
-    mvaddstr(height-1, (width / 2) - scoreStr.size() / 2 , max_scoreStr.c_str());
+    mvaddstr(0, (width / 2) - scoreStr.size() / 2, scoreStr.c_str());
+    mvaddstr(height - 1, (width / 2) - scoreStr.size() / 2,
+             max_scoreStr.c_str());
 }
 
 void Game::collisions_check() {
@@ -185,7 +207,7 @@ void Game::collisions_check() {
     if (snake.x <= 0 || snake.x >= width) {
         game_over();
     }
-    for (SnakeTail& snakeTail: snake.tail) {
+    for (SnakeTail &snakeTail : snake.tail) {
         if (snake.x == snakeTail.x && snake.y == snakeTail.y) {
             game_over();
         }
@@ -258,13 +280,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--ticks") {
-            configs.ticks_per_second = std::stoi(argv[i+1]);           
+            configs.ticks_per_second = std::stoi(argv[i + 1]);
         }
         if (arg == "--fruits") {
-            configs.fruits_to_generate = std::stoi(argv[i+1]);
+            configs.fruits_to_generate = std::stoi(argv[i + 1]);
         }
         if (arg == "--snake-update-factor") {
-            configs.snake_update_time_factor = std::stoi(argv[i+1]);
+            configs.snake_update_time_factor = std::stoi(argv[i + 1]);
         }
     }
 
